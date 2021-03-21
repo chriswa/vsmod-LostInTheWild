@@ -1,0 +1,14 @@
+{
+  "type": "Code",
+  "side": "Server",
+  "modid": "lostinthewild",
+  "name": "LostInTheWild",
+  "authors": [
+    "goxmeor"
+  ],
+  "description": "Prevents players from learning their coordinates using /waypoint or /land",
+  "version": "0.0.1",
+  "dependency": {
+    "game": ""
+  }
+}
