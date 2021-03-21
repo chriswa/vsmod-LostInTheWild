@@ -13,7 +13,6 @@ namespace LostInTheWild {
     private Harmony harmony;
     public override void StartServerSide(ICoreServerAPI sapi) {
       harmony = new Harmony("goxmeor.lostinthewild");
-      Harmony.DEBUG = true;
       harmony.PatchAll();
     }
     // public override void Dispose() {
