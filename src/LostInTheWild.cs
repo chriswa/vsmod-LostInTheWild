@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -13,12 +14,26 @@ namespace LostInTheWild {
     private Harmony harmony;
     public override void StartServerSide(ICoreServerAPI sapi) {
       harmony = new Harmony("goxmeor.lostinthewild");
-      harmony.PatchAll();
+      harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+      sapi.RegisterCommand("getplayerpos", "Outputs player's position to server console", "/getplayerpos PlayerName", (IServerPlayer player, int groupId, CmdArgs args) => {
+        string playerName = args.PopWord();
+        foreach (IServerPlayer onlinePlayer in sapi.World.AllOnlinePlayers) {
+          if (onlinePlayer.PlayerName.Equals(playerName)) {
+            var pos = onlinePlayer?.Entity?.Pos?.AsBlockPos;
+            if (pos != null) {
+              sapi.Logger.Notification("getplayerpos: Player {0} is at {1}", onlinePlayer.PlayerName, pos);
+              return;
+            }
+          }
+        }
+        sapi.Logger.Notification("getplayerpos: Could not find player named {0}", playerName);
+
+      }, Privilege.tp);
     }
-    // public override void Dispose() {
-    //   harmony.UnpatchAll(harmony.Id);
-    //   base.Dispose();
-    // }
+    public override void Dispose() {
+      harmony.UnpatchAll(harmony.Id);
+    }
   }
 
   [HarmonyPatch(typeof(WaypointMapLayer))]
@@ -30,19 +45,18 @@ namespace LostInTheWild {
     }
   }
 
-  [HarmonyPatch(typeof(BaseServerChatCommandDelegateProvider))]
-  [HarmonyPatch("Success")]
-  public class Patch_BaseServerChatCommandDelegateProvider_Success {
-    public static bool Prefix(BaseServerChatCommandDelegateProvider __instance, IServerPlayer player, int groupId, string message) {
-      if (__instance.GetType().ToString() == "Vintagestory.Server.CmdLandRights") {
-        string censoredMessage = message;
-        // first, try to remove english phrases including coords
-        censoredMessage = Regex.Replace(censoredMessage, " at -?\\d+, -?\\d+, -?\\d+", "");
-        censoredMessage = Regex.Replace(censoredMessage, " position -?\\d+, -?\\d+, -?\\d+", "");
-        // if this isn't english, simply replace coords with a bogus string
-        censoredMessage = Regex.Replace(censoredMessage, "-?\\d+, -?\\d+, -?\\d+", "[LostInTheWild]");
-        player.SendMessage(groupId, censoredMessage, EnumChatType.CommandSuccess);
-        return false; // skip original method
+  [HarmonyPatch(typeof(ServerLogger))]
+  [HarmonyPatch("Log")]
+  public class Patch_ServerLogger_Log {
+    public static bool Prefix(EnumLogType logType, ref string message, params object[] args) {
+      if (message == "Placing player at {0} {1} {2}") {
+        message = "Placing player";
+      }
+      else if (message == ("Teleporting player {0} to {1}")) {
+        message = "Teleporting player {0}";
+      }
+      else if (message == ("Teleporting entity {0} to {1}")) {
+        message = "Teleporting entity {0}";
       }
       return true; // run original method
     }
